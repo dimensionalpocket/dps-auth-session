@@ -33,7 +33,7 @@ fn main() -> Result<(), DpsAuthSessionError> {
     let secret = &[0u8; 32];
     
     // Create a session payload for user ID 123
-    let payload = DpsAuthSession::create_payload(123);
+    let payload = DpsAuthSession::create_payload(123, None);
     println!("Created session for user: {}", payload.sub);
     
     // Encode the payload into a secure token
@@ -74,8 +74,8 @@ The main struct providing static methods for token operations.
 
 #### Methods
 
-- `create_payload(user_id: i64) -> DpsAuthSessionPayload`
-  - Creates a new session payload with current timestamp and 3-day expiration
+- `create_payload(user_id: i64, expiration_seconds: Option<i64>) -> DpsAuthSessionPayload`
+  - Creates a new session payload with current timestamp. If `expiration_seconds` is `None`, the default of 3 days is used. If `Some(n)` and `n > 0`, the token expires `n` seconds after issuance.
   
 - `encode_token(payload: &DpsAuthSessionPayload, secret: &[u8]) -> Result<String, DpsAuthSessionError>`
   - Encrypts a session payload into a base64-encoded token

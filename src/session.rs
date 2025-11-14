@@ -37,7 +37,7 @@ impl DpsAuthSession {
   ///
   /// // Use a 32-byte secret key
   /// let secret = &[0u8; 32]; // In practice, use a proper secret
-  /// let payload = DpsAuthSession::create_payload(123);
+  /// let payload = DpsAuthSession::create_payload(123, None);
   /// let token = DpsAuthSession::encode_token(&payload, secret)?;
   /// println!("Generated token: {}", token);
   /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -101,7 +101,7 @@ impl DpsAuthSession {
   /// let secret = &[0u8; 32]; // In practice, use a proper secret
   ///
   /// // Create and encode a token first
-  /// let payload = DpsAuthSession::create_payload(123);
+  /// let payload = DpsAuthSession::create_payload(123, None);
   /// let token = DpsAuthSession::encode_token(&payload, secret)?;
   ///
   /// // Then decode it
@@ -156,11 +156,14 @@ impl DpsAuthSession {
   /// Create a new session payload for a user.
   ///
   /// This method creates a new session payload with the current timestamp as the
-  /// issued time and sets the expiration to 3 days from now.
+  /// issued time and sets the expiration based on the provided parameter or the default.
   ///
   /// # Arguments
   ///
   /// * `user_id` - The unique identifier of the user for this session
+  /// * `expiration_seconds` - Optional lifetime in seconds. Use `None` to use the default
+  ///   of 3 days (`DEFAULT_EXPIRATION_SECONDS`). If `Some(n)` and `n > 0`, the token will
+  ///   expire `n` seconds after issuance.
   ///
   /// # Returns
   ///
@@ -168,20 +171,33 @@ impl DpsAuthSession {
   ///
   /// # Examples
   ///
+  /// Default expiration:
   /// ```rust
   /// use dps_auth_session::DpsAuthSession;
   ///
-  /// let payload = DpsAuthSession::create_payload(123);
+  /// let payload = DpsAuthSession::create_payload(123, None);
   /// assert_eq!(payload.sub, 123);
   /// assert!(payload.exp > payload.iat);
   /// ```
-  pub fn create_payload(user_id: i64) -> DpsAuthSessionPayload {
+  ///
+  /// Custom expiration (1 hour):
+  /// ```rust
+  /// use dps_auth_session::DpsAuthSession;
+  ///
+  /// let payload = DpsAuthSession::create_payload(123, Some(3600));
+  /// assert_eq!(payload.exp, payload.iat + 3600);
+  /// ```
+  pub fn create_payload(user_id: i64, expiration_seconds: Option<i64>) -> DpsAuthSessionPayload {
     let current_time = chrono::Utc::now().timestamp();
+    let effective_seconds = match expiration_seconds {
+      Some(seconds) if seconds > 0 => seconds,
+      _ => Self::DEFAULT_EXPIRATION_SECONDS,
+    };
 
     DpsAuthSessionPayload {
       sub: user_id,
       iat: current_time,
-      exp: current_time + Self::DEFAULT_EXPIRATION_SECONDS,
+      exp: current_time + effective_seconds,
     }
   }
 }
@@ -199,7 +215,7 @@ mod tests {
   #[test]
   fn test_create_payload() {
     let user_id = 123;
-    let payload = DpsAuthSession::create_payload(user_id);
+    let payload = DpsAuthSession::create_payload(user_id, None);
 
     assert_eq!(payload.sub, user_id);
     assert!(payload.iat > 0);
@@ -211,7 +227,7 @@ mod tests {
 
   #[test]
   fn test_encode_decode_roundtrip() {
-    let payload = DpsAuthSession::create_payload(456);
+    let payload = DpsAuthSession::create_payload(456, None);
     let token = DpsAuthSession::encode_token(&payload, TEST_SECRET).unwrap();
     let decoded_payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
 
@@ -250,7 +266,7 @@ mod tests {
 
   #[test]
   fn test_encode_decode_with_different_secrets() {
-    let payload = DpsAuthSession::create_payload(123);
+    let payload = DpsAuthSession::create_payload(123, None);
 
     // Encode with one secret
     let token = DpsAuthSession::encode_token(&payload, TEST_SECRET).unwrap();
@@ -264,8 +280,8 @@ mod tests {
 
   #[test]
   fn test_multiple_users_different_tokens() {
-    let payload1 = DpsAuthSession::create_payload(100);
-    let payload2 = DpsAuthSession::create_payload(200);
+    let payload1 = DpsAuthSession::create_payload(100, None);
+    let payload2 = DpsAuthSession::create_payload(200, None);
 
     let token1 = DpsAuthSession::encode_token(&payload1, TEST_SECRET).unwrap();
     let token2 = DpsAuthSession::encode_token(&payload2, TEST_SECRET).unwrap();
@@ -286,9 +302,9 @@ mod tests {
     let user_id = 123;
 
     // Create two payloads for the same user (different timestamps)
-    let payload1 = DpsAuthSession::create_payload(user_id);
+    let payload1 = DpsAuthSession::create_payload(user_id, None);
     std::thread::sleep(std::time::Duration::from_millis(10)); // Ensure different timestamp
-    let payload2 = DpsAuthSession::create_payload(user_id);
+    let payload2 = DpsAuthSession::create_payload(user_id, None);
 
     let token1 = DpsAuthSession::encode_token(&payload1, TEST_SECRET).unwrap();
     let token2 = DpsAuthSession::encode_token(&payload2, TEST_SECRET).unwrap();
@@ -339,7 +355,7 @@ mod tests {
   #[test]
   fn test_large_user_id() {
     let large_user_id = i64::MAX;
-    let payload = DpsAuthSession::create_payload(large_user_id);
+    let payload = DpsAuthSession::create_payload(large_user_id, None);
 
     let token = DpsAuthSession::encode_token(&payload, TEST_SECRET).unwrap();
     let decoded = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
@@ -347,4 +363,15 @@ mod tests {
     assert_eq!(payload.sub, large_user_id);
     assert_eq!(decoded.sub, large_user_id);
   }
+}
+
+// Additional test for custom expiration
+#[test]
+fn test_create_payload_with_custom_expiration() {
+  let user_id = 42;
+  let custom_seconds = 60; // 1 minute
+  let payload = DpsAuthSession::create_payload(user_id, Some(custom_seconds));
+
+  assert_eq!(payload.sub, user_id);
+  assert_eq!(payload.exp, payload.iat + custom_seconds);
 }
