@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/dimensionalpocket/dps-auth-session/compare/0.2.0...0.3.0) (2026-02-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename project and change sub to string ([#10](https://github.com/dimensionalpocket/dps-auth-session/issues/10))
+
+### Features
+
+* rename project and change sub to string ([#10](https://github.com/dimensionalpocket/dps-auth-session/issues/10)) ([c371d8d](https://github.com/dimensionalpocket/dps-auth-session/commit/c371d8db1c64ae1b1e9d200a1965d6856051d4e5))
+
 ## [0.2.0](https://github.com/dimensionalpocket/dps-auth-session/compare/0.1.0...0.2.0) (2025-11-14)
 
 
