@@ -16,7 +16,7 @@
 //! use dps_auth_session::{DpsAuthSession, DpsAuthSessionPayload};
 //!
 //! // Create a session payload
-//! let payload = DpsAuthSession::create_payload(123, None);
+//! let payload = DpsAuthSession::create_payload("user123".to_string(), None);
 //!
 //! // Encode to token
 //! let secret = &[0u8; 32]; // Use a proper 32-byte secret in production
